@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="us-ascii"?>
+<application xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" id="application">
+  <jobTemplates>
+    <jobTemplate id="otb">
+      <streamingExecutable>/application/otb/run</streamingExecutable>
+      <defaultParameters>
+        <parameter id="swath" title="Sentinel-1 swath" abstract="Define the swath of the Sentinel-1 product to be processed with OTB" scope="test" maxOccurs="1">
+          <options>
+            <option>IW1</option>
+            <option>IW2</option>
+            <option>IW3</option>
+            <option>IW1,IW2</option>
+            <option>IW2,IW3</option>
+            <option>IW1,IW2,IW3</option>
+            <default>IW1,IW2,IW3</default>
+          </options>
+        </parameter>
+        <parameter id="polarisation" title="Sentinel-1 product polarisation" abstract="Define the Sentinel-1 product polarisation" scope="runtime" maxOccurs="1">
+          <options>
+            <option>VV</option>
+            <option>VH</option>
+            <option>HH</option>
+            <option>HV</option>
+            <default>VV</default>
+          </options>
+        </parameter>
+      </defaultParameters>
+      <defaultJobconf>
+        <property id="mapred.task.timeout">9900000000000</property>
+      </defaultJobconf>
+    </jobTemplate>
+  </jobTemplates>
+  <workflow id="dcs-otb-S1-one-to-one" title="OTB application" abstract="OTB application">
+    <workflowVersion>1.0</workflowVersion>
+    <node id="otb">
+      <job id="otb"/>
+      <sources>
+        <source id="source" title="Sentinel-1 references" abstract="List of Sentinel-1 references" refid="string:list" scope="runtime">https://catalog.terradue.com/sentinel1/search?uid=S1B_IW_SLC__1SDV_20170718T041442_20170718T041509_006537_00B7E8_BD0D</source>
+      </sources>
+    </node>
+  </workflow>
+</application>

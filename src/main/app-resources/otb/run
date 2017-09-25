@@ -1,0 +1,111 @@
+#!/opt/anaconda/bin/python
+
+import sys
+import os
+import lxml.etree as et
+import shutil
+import tarfile
+import atexit
+import glob
+
+sys.path.append('/opt/anaconda/bin/')
+import cioppy
+ciop = cioppy.Cioppy()
+
+sys.path.append(os.environ['_CIOP_APPLICATION_PATH'] + '/otbhelpers')
+import otbhelpers as oh
+
+sys.path.append('/opt/OTB/lib/python')
+sys.path.append('/opt/OTB/lib/libfftw3.so.3')
+os.environ['OTB_APPLICATION_PATH'] = '/opt/OTB/lib/otb/applications'
+os.environ['LD_LIBRARY_PATH'] = '/opt/OTB/lib'
+os.environ['ITK_AUTOLOAD_PATH'] = '/opt/OTB/lib/otb/applications'
+import otbApplication
+
+# define the exit codes
+SUCCESS = 0
+ERR_RESOLUTION = 10
+ERR_STAGEIN = 20
+ERR_EXTRACT = 30
+ERR_NO_OUTPUT = 40 
+
+# add a trap to exit gracefully
+def clean_exit(exit_code):
+    log_level = 'INFO'
+    if exit_code != SUCCESS:
+        log_level = 'ERROR'  
+   
+    msg = {SUCCESS: 'Processing successfully concluded',
+           ERR_RESOLUTION: 'Could not resolve Landsat-8 product enclosure',
+           ERR_STAGEIN: 'Could not stage-in Landsat-8 product',
+           ERR_EXTRACT: 'Failed to extract Landsat-8 product',
+           ERR_NO_OUTPUT: "OTB failed to produce output"
+    }
+ 
+    ciop.log(log_level, msg[exit_code])  
+
+def process(s1_prd, s1_cal_prd):
+
+    ciop.log('INFO', 'Process in-memory OTB applications')
+
+    # orchestrate the OTB applications
+    OTB_app1 = otbApplication.Registry.CreateApplication("SARDeburst")
+    OTB_app1.SetParameterString("in", s1_prd)
+
+    OTB_app1.Execute()
+
+    OTB_app2 = otbApplication.Registry.CreateApplication("SARCalibration")
+    OTB_app2.AddImageToParameterInputImageList("il", OTB_app1.GetParameterOutputImage("out"))
+    OTB_app2.SetParameterString("out", s1_cal_prd)
+
+    OTB_app2.ExecuteAndWriteOutput()
+
+def main():
+
+    os.chdir(ciop.tmp_dir)
+
+    polarisation = ciop.getparam('polarisation').lower()
+    swath = ciop.getparam('swath').lower()
+
+    # Loops over all the inputs
+    for inputfile in sys.stdin:
+      # report activity in log
+      ciop.log('INFO', 'The input file is: ' + inputfile)
+
+      search = ciop.search(end_point = inputfile, params = [], output_fields='enclosure,identifier', model='GeoTime')
+      assert(search), sys.exit(ERR_RESOLUTION)
+
+      ciop.log('INFO', 'Retrieve %s from %s' % (search[0]['identifier'], search[0]['enclosure']))
+      retrieved = ciop.copy(search[0]['enclosure'], ciop.tmp_dir)
+      assert(retrieved), sys.exit(ERR_STAGEIN)
+
+      ciop.log('DEBUG', 'a: ' + type(search[0]['identifier']))
+      sys.exit(2)
+#      search_expression = os.path.join(ciop.tmp_dir, search[0]['identifier'], search[0]['identifier'] + '.SAFE', 'measurement', 's1?-' + swath + '-slc-*' + polarisation + '*.tiff')
+      ciop.log('INFO', 'path: ' + search_expression)
+
+      s1_prd = '' 
+      #s1_prd = glob.glob(search_expression)[0]  
+
+      ciop.log('INFO', 'The input file is: ' + s1_prd) 
+
+      s1_cal_prd = os.path.join(ciop.tmp_dir, os.path.basename(s1_prd)[:-3] + '_cal.tiff')
+
+      ciop.log('INFO', 'The output file is: ' + s1_cal_prd)
+      process(s1_prd, s1_cal_prd)
+ 
+      assert(os.path.isfile(s1_cal_prd)), sys.exit(ERR_NO_OUTPUT)
+       
+      # publish
+      ciop.log('INFO', 'Publishing ' + s1_cal_prd ) 
+      ciop.publish(s1_cal_prd, metalink=True)      
+
+try:
+  main()
+except SystemExit as e:
+  if e.args[0]:
+    clean_exit(e.args[0])
+  raise
+else:
+  atexit.register(clean_exit, 0)
+
