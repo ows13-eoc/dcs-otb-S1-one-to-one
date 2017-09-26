@@ -28,6 +28,7 @@ ERR_RESOLUTION = 10
 ERR_STAGEIN = 20
 ERR_EXTRACT = 30
 ERR_NO_OUTPUT = 40 
+ERR_NO_S1 = 50
 
 # add a trap to exit gracefully
 def clean_exit(exit_code):
@@ -39,26 +40,30 @@ def clean_exit(exit_code):
            ERR_RESOLUTION: 'Could not resolve Landsat-8 product enclosure',
            ERR_STAGEIN: 'Could not stage-in Landsat-8 product',
            ERR_EXTRACT: 'Failed to extract Landsat-8 product',
-           ERR_NO_OUTPUT: "OTB failed to produce output"
+           ERR_NO_OUTPUT: "OTB failed to produce output",
+           ERR_NO_S1: "Could not find Sentinel-1 data with swath and polarisation provided"    
     }
  
     ciop.log(log_level, msg[exit_code])  
 
-def process(s1_prd, s1_cal_prd):
+def process(s1_prd, s1_out_prd, lut = "lut sigma"):
 
     ciop.log('INFO', 'Process in-memory OTB applications')
 
     # orchestrate the OTB applications
-    OTB_app1 = otbApplication.Registry.CreateApplication("SARDeburst")
-    OTB_app1.SetParameterString("in", s1_prd)
+    OTB_app1 = otbApplication.Registry.CreateApplication('SARDeburst')
+    OTB_app1.SetParameterString('in', s1_prd)
+    OTB_app1.SetParameterString('out', os.path.join(ciop.tmp_dir, 'sardeburst.tiff'))
+    OTB_app1.ExecuteAndWriteOutput()
 
-    OTB_app1.Execute()
-
-    OTB_app2 = otbApplication.Registry.CreateApplication("SARCalibration")
-    OTB_app2.AddImageToParameterInputImageList("il", OTB_app1.GetParameterOutputImage("out"))
-    OTB_app2.SetParameterString("out", s1_cal_prd)
-
+    OTB_app2 = otbApplication.Registry.CreateApplication('SARCalibration')
+    OTB_app2.SetParameterString('in', os.path.join(ciop.tmp_dir, 'sardeburst.tiff'))
+    OTB_app2.SetParameterString('out', s1_out_prd)
+    OTB_app2.SetParameterString('lut', lut)
     OTB_app2.ExecuteAndWriteOutput()
+ 
+    os.remove(os.path.join(ciop.tmp_dir, sardeburst.tiff))
+ 
 
 def main():
 
@@ -66,6 +71,7 @@ def main():
 
     polarisation = ciop.getparam('polarisation').lower()
     swath = ciop.getparam('swath').lower()
+    lut = ciop.getparam('lut')
 
     # Loops over all the inputs
     for inputfile in sys.stdin:
@@ -79,27 +85,31 @@ def main():
       retrieved = ciop.copy(search[0]['enclosure'], ciop.tmp_dir)
       assert(retrieved), sys.exit(ERR_STAGEIN)
 
-      ciop.log('DEBUG', 'a: ' + type(search[0]['identifier']))
-      sys.exit(2)
-#      search_expression = os.path.join(ciop.tmp_dir, search[0]['identifier'], search[0]['identifier'] + '.SAFE', 'measurement', 's1?-' + swath + '-slc-*' + polarisation + '*.tiff')
+      search_expression = os.path.join(ciop.tmp_dir, str(search[0]['identifier']), str(search[0]['identifier']) + '.SAFE', 'measurement', 's1?-' + swath + '-slc-*' + polarisation + '*.tiff')
       ciop.log('INFO', 'path: ' + search_expression)
 
-      s1_prd = '' 
-      #s1_prd = glob.glob(search_expression)[0]  
+      #s1_prd = '' 
+      try:
+        s1_prd = glob.glob(search_expression)[0]  
+      except:
+        sys.exit(ERR_NO_S1)
 
       ciop.log('INFO', 'The input file is: ' + s1_prd) 
 
-      s1_cal_prd = os.path.join(ciop.tmp_dir, os.path.basename(s1_prd)[:-3] + '_cal.tiff')
+      s1_result_prd = os.path.join(ciop.tmp_dir, os.path.basename(s1_prd)[:-5] + '_deburst_calibrated.tiff')
 
-      ciop.log('INFO', 'The output file is: ' + s1_cal_prd)
-      process(s1_prd, s1_cal_prd)
+      ciop.log('INFO', 'The output file is: ' + s1_result_prd)
+      process(s1_prd, s1_result_prd, lut)
  
-      assert(os.path.isfile(s1_cal_prd)), sys.exit(ERR_NO_OUTPUT)
+      assert(os.path.isfile(s1_result_prd)), sys.exit(ERR_NO_OUTPUT)
        
       # publish
-      ciop.log('INFO', 'Publishing ' + s1_cal_prd ) 
-      ciop.publish(s1_cal_prd, metalink=True)      
-
+      ciop.log('INFO', 'Publishing ' + s1_result_prd ) 
+      ciop.publish(s1_result_prd, metalink=True)      
+   
+      # clean-up
+      os.remove(s1_result_prd)
+      os.rmdir(os.path.join(ciop.tmp_dir, str(search[0]['identifier'])))
 try:
   main()
 except SystemExit as e:

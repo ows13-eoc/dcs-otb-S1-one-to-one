@@ -5,6 +5,7 @@ import os
 import unittest
 import string
 from StringIO import StringIO
+import py_compile
 
 # Simulating the Runtime environment
 os.environ['TMPDIR'] = '/tmp'
@@ -28,7 +29,15 @@ class NodeATestCase(unittest.TestCase):
         # check that s.split fails when the separator is not a string
         with self.assertRaises(TypeError):
             s.split(2)
-  
+
+    def test_compile(self):
+        #with self.assertRaises(py_compile.PyCompileError):
+        #  py_compile.compile('/home/fbrito/dcs-otb-S1-one-to-one/src/main/app-resources/otb/run', doraise=True)
+        try:
+          py_compile.compile('/home/fbrito/dcs-otb-S1-one-to-one/src/main/app-resources/otb/run', doraise=True)
+        except:
+          self.fail('failed to compile src/main/app-resources/otb/run')
+ 
 if __name__ == '__main__':
     unittest.main()
 
