@@ -62,7 +62,7 @@ def process(s1_prd, s1_out_prd, lut = "lut sigma"):
     OTB_app2.SetParameterString('lut', lut)
     OTB_app2.ExecuteAndWriteOutput()
  
-    os.remove(os.path.join(ciop.tmp_dir, sardeburst.tiff))
+    os.remove(os.path.join(ciop.tmp_dir, 'sardeburst.tiff'))
  
 
 def main():
@@ -109,7 +109,7 @@ def main():
    
       # clean-up
       os.remove(s1_result_prd)
-      os.rmdir(os.path.join(ciop.tmp_dir, str(search[0]['identifier'])))
+      shutil.rmtree(os.path.join(ciop.tmp_dir, str(search[0]['identifier'])))
 try:
   main()
 except SystemExit as e:
