@@ -32,7 +32,7 @@
         </parameter>
       </defaultParameters>
       <defaultJobconf>
-        <property id="mapred.task.timeout">9900000000000</property>
+        <property id="mapred.task.timeout">720000000</property>
       </defaultJobconf>
     </jobTemplate>
   </jobTemplates>
