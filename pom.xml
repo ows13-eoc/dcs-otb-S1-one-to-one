@@ -42,9 +42,9 @@
               <execution>
                 <id>generate-rpm</id>
                 <goals>
-			<goal>rpm</goal>
-			<phase>compile</phase>
+		  <goal>rpm</goal>
                 </goals>
+		<phase>compile</phase>
                 <configuration>
                   <!-- Set here the dependencies installed with 'sudo yum install'-->
                   <requires>
