@@ -11,7 +11,7 @@
     <version>2.1.0-docker-SNAPSHOT</version>
   </parent>
   <description>dcs-otb-S1-one-to-one</description>
-  <version>0.9</version>
+  <version>0.10</version>
   <properties>
     <summary>dcs-otb-S1-one-to-one</summary>
     <description>dcs-otb-S1-one-to-one</description>
